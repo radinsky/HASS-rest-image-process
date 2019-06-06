@@ -9,6 +9,7 @@ from datetime import timedelta
 import requests
 import logging
 import voluptuous as vol
+import json
 
 from homeassistant.core import split_entity_id
 import homeassistant.helpers.config_validation as cv
@@ -19,6 +20,8 @@ from homeassistant.components.image_processing import (
 _LOGGER = logging.getLogger(__name__)
 
 CONF_URL = 'url'
+CONF_HEADERS = 'headers'
+DEFAULT_HEADERS = "{'content-type': 'application/json, charset=utf-8'}"
 CONF_CONCEPTS = 'concepts'
 DEFAULT_CONCEPTS = 'NO_CONCEPT'
 
@@ -26,6 +29,7 @@ SCAN_INTERVAL = timedelta(seconds=5)
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
     vol.Required(CONF_URL): cv.string,
+    vol.Optional(CONF_HEADERS, default=[DEFAULT_HEADERS]): cv.string,
     vol.Optional(CONF_CONCEPTS, default=[DEFAULT_CONCEPTS]):
         vol.All(cv.ensure_list, [cv.string]),
 })
@@ -39,6 +43,7 @@ def setup_platform(hass, config, add_devices, discovery_info=None):
             hass,
             camera.get(CONF_NAME),
             config[CONF_URL],
+            config[CONF_HEADERS],
             config[CONF_CONCEPTS],
             camera[CONF_ENTITY_ID],
         ))
@@ -50,7 +55,7 @@ class Classifier(ImageProcessingEntity):
 
     ICON = 'mdi:file'
 
-    def __init__(self, hass, name, url, concepts, camera_entity):
+    def __init__(self, hass, name, url, headers, concepts, camera_entity):
         """Init with the API key and model id"""
         self.hass = hass
         if name:  # Since name is optional.
@@ -60,7 +65,7 @@ class Classifier(ImageProcessingEntity):
                 split_entity_id(camera_entity)[1])
         self._concepts = concepts
         self._camera_entity = camera_entity
-        self._headers = {'content-type': 'application/json, charset=utf-8'}
+        self._headers = json.loads(headers)
         self._url = url
         self._classifications = {}  # The dict of classifications
         self._state = None    # The most likely classification
